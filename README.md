@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Oyak Çimento Kariyer Portalı
 
-## Getting Started
+Bu proje, Oyak Çimento İş Zekası departmanındaki staj sürecim kapsamında, aday başvuru süreçlerini otomatize etmek ve İnsan Kaynakları iş akışını hızlandırmak amacıyla geliştirilmiş uçtan uca (End-to-End) bir dijital çözümdür.
 
-First, run the development server:
+ **Canlı Demo:** [oyak-career-portal.vercel.app](https://oyak-career-portal.vercel.app)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+##  Sistem Mimarisi ve Akış
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Sistem, modern web teknolojileri ile kurumsal otomasyon araçlarının entegrasyonu üzerine kurulmuştur:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **Frontend (Next.js):** Adayların bilgilerini girdiği ve CV'lerini (PDF) yüklediği kullanıcı dostu arayüz.
+2.  **Otomasyon (Power Automate):** Verileri anlık olarak yakalayan, işleyen ve dağıtan "backend" motoru.
+3.  **Veri Yönetimi (SharePoint):** Tüm başvuruların ve dosyaların güvenli bir şekilde saklandığı veritabanı.
+4.  **İletişim (Outlook & Teams):** Adaya otomatik onay/mülakat mailleri gönderimi ve İK ekibine anlık Teams bildirimleri.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ✨ Temel Özellikler
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Anlık Başvuru Kaydı:** Form doldurulduğu anda SharePoint listesine otomatik veri girişi.
+- **Akıllı Dosya Yönetimi:** Yüklenen CV'lerin aday ismiyle klasörlenerek SharePoint'e kaydedilmesi.
+- **Dinamik Bilgilendirme:** - Adaya kurumsal tasarımlı "Başvuru Alındı" maili.
+- **İK tarafından durum "Mülakat Planlandı" olarak güncellendiğinde interaktif mülakat daveti.
+- **İK Bildirim Sistemi:** Yeni bir başvuru geldiğinde İK ekibine Microsoft Teams üzerinden anlık bildirim.
+- **Kurumsal Kimlik:** Oyak Çimento renk paleti ve tasarım standartlarına uygun arayüz.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+##  Kullanılan Teknolojiler
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Frontend:** Next.js, TypeScript, Tailwind CSS
+- **Backend/Automation:** Microsoft Power Automate
+- **Storage:** Microsoft SharePoint, OneDrive for Business
+- **Communication:** Microsoft Outlook, Microsoft Teams
+- **Deployment:** Vercel, GitHub
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+---
