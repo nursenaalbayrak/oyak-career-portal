@@ -1,37 +1,50 @@
 'use client';
 
 import { useFileUpload } from "../hooks/useFileUpload";
-import { OYAK_THEME } from "../constants/theme";
 import { useState, useMemo } from "react";
-import { submitToPowerAutomate } from "../api/submitApplication";
+import { submitToPowerAutomate, parseCVWithAI } from "../api/submitApplication";
+import Image from "next/image";
 
 export default function ApplicationForm() {
-  const { fileData, error: fileError, handleFileChange } = useFileUpload();
+  const { fileData, handleFileChange } = useFileUpload();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isParsing, setIsParsing] = useState(false); 
   const [kvkkAccepted, setKvkkAccepted] = useState(false);
-  
-  // 1. MODAL DURUMU: Başlangıçta 'idle' (görünmez)
   const [modalStatus, setModalStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const [formData, setFormData] = useState({
-    ad: '',
-    soyad: '',
-    email: '',
-    telefon: '',
-    pozisyon: 'Genel Başvuru',
+    ad: '', soyad: '', email: '', telefon: '', pozisyon: 'Genel Başvuru',
   });
 
-  const isEmailValid = useMemo(() => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
-  }, [formData.email]);
+  // CV seçildiğinde çalışacak fonksiyon
+  const onFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleFileChange(file);
+    setIsParsing(true);
+    try {
+      const result = await parseCVWithAI(file);
+      setFormData(prev => ({ 
+        ...prev, 
+        ad: result.ad || '', 
+        soyad: result.soyad || '', 
+        email: result.email || '', 
+        telefon: result.telefon || ''
+      }));
+    } catch (err) { 
+      console.error("AI okuma hatası:", err); 
+    } finally { 
+      setIsParsing(false); 
+    }
+  };
 
-  const isPhoneValid = useMemo(() => {
-    return formData.telefon.replace(/\D/g, '').length >= 10;
-  }, [formData.telefon]);
+  // Formun geçerli olup olmadığını kontrol eden kural
+  const isFormValid = useMemo(() => {
+    return !!(formData.ad && formData.soyad && formData.email.includes('@') && fileData && kvkkAccepted);
+  }, [formData, fileData, kvkkAccepted]);
 
-  const isFormValid = formData.ad && formData.soyad && isEmailValid && isPhoneValid && fileData && kvkkAccepted;
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Formu gönderen asıl fonksiyon
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
 
@@ -40,17 +53,16 @@ export default function ApplicationForm() {
       fullName: `${formData.ad} ${formData.soyad}`,
       email: formData.email,
       position: formData.pozisyon,
-      cvBase64: fileData.base64,
-      fileName: fileData.name,
+      cvBase64: fileData?.base64 || "",
+      fileName: fileData?.name || "cv.pdf",
       appliedAt: new Date().toISOString()
     };
     
     try {
       await submitToPowerAutomate(payload); 
-      // 2. BAŞARILI: alert yerine modalı açıyoruz
       setModalStatus('success');
     } catch (err) {
-      // 3. HATA: alert yerine hata modalını açıyoruz
+      console.error("Gönderim hatası:", err);
       setModalStatus('error');
     } finally {
       setIsSubmitting(false);
@@ -58,146 +70,183 @@ export default function ApplicationForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800 p-4 md:p-10" style={{ fontFamily: OYAK_THEME.fonts.main }}>
-      <div className="max-w-5xl mx-auto bg-white shadow-2xl rounded-lg overflow-hidden border border-gray-100 relative">
-        
-        <div className="bg-[#E30613] p-5 text-center shadow-md">
-          <h1 className="text-xl md:text-2xl font-extrabold text-white uppercase tracking-tighter">
-            OYAK ÇİMENTO KARİYER PORTALI
+    <div className="min-h-screen bg-white text-[#1D1D1B] font-sans antialiased">
+      
+      {/* ÜST NAVİGASYON */}
+      <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+          <Image src="/oyak-logo-main.png" alt="OYAK ÇİMENTO" width={180} height={45} priority />
+          
+          <nav className="hidden lg:flex items-center gap-10">
+            {['KURUMSAL', 'SÜRDÜRÜLEBİLİRLİK', 'KARİYER', 'BAŞVURU SÜRECİ', 'İLETİŞİM'].map((item) => (
+              <span key={item} className={`text-[12px] font-bold tracking-widest cursor-pointer hover:text-[#E30613] transition-colors ${item === 'KARİYER' ? 'text-[#E30613] border-b-2 border-[#E30613] pb-1' : 'text-gray-500'}`}>
+                {item}
+              </span>
+            ))}
+          </nav>
+
+          <button className="bg-[#1D1D1B] text-white px-5 py-2 text-[11px] font-bold tracking-tighter hover:bg-[#E30613] transition-all">
+            OYAK GRUBU
+          </button>
+        </div>
+      </header>
+
+      {/* HERO SECTION */}
+      <section className="bg-[#fcfcfc] border-b border-gray-100 py-20 px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-[#1D1D1B] leading-tight mb-6">
+            Yarının Dünyasını <span className="text-[#E30613]">Birlikte İnşa Edelim.</span>
           </h1>
+          <p className="text-gray-500 text-lg font-light max-w-2xl mx-auto leading-relaxed">
+            Türkiye'nin endüstriyel gücü OYAK Çimento'da kariyer yolculuğunuza başlayın. 
+            Dijital dönüşüm odaklı başvuru sürecimizle yeteneklerinizi geleceğe taşıyoruz.
+          </p>
+        </div>
+      </section>
+
+      <main className="max-w-6xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-12 gap-16">
+        
+        {/* SOL TARAF: SÜREÇ BİLGİLERİ */}
+        <div className="lg:col-span-4 space-y-10">
+          <div className="sticky top-32">
+            <h3 className="text-[#E30613] font-bold text-sm tracking-[0.2em] mb-4">BAŞVURU ADIMLARI</h3>
+            <div className="space-y-8">
+              {[
+                { n: '01', t: 'Dijital Profil Oluşturma', d: 'Özgeçmişinizi yükleyerek bilgilerinizi otomatik aktarın.' },
+                { n: '02', t: 'Ön Değerlendirme', d: 'Yapay zeka ve İK ekiplerimiz tarafından yapılan teknik inceleme.' },
+                { n: '03', t: 'Mülakat Süreçleri', d: 'Yetkinlik bazlı ve teknik görüşmelerin gerçekleştirilmesi.' }
+              ].map((step) => (
+                <div key={step.n} className="flex gap-4">
+                  <span className="text-gray-200 text-3xl font-black">{step.n}</span>
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{step.t}</h4>
+                    <p className="text-gray-400 text-xs mt-1">{step.d}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="p-6 md:p-10">
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+        {/* SAĞ TARAF: ANA BAŞVURU FORMU */}
+        <div className="lg:col-span-8">
+          <div className="bg-white border border-gray-100 shadow-2xl p-8 md:p-12 relative">
             
-            {/* Pozisyon Seçimi */}
-            <div className="md:col-span-2 mb-4 p-4 bg-blue-50 border-l-4 border-blue-500 rounded shadow-inner">
-              <label className="text-xs font-bold uppercase text-blue-900 mb-2 block">Başvuru Pozisyonu</label>
-              <select 
-                value={formData.pozisyon}
-                onChange={(e) => setFormData({...formData, pozisyon: e.target.value})}
-                className="w-full md:w-1/2 p-2.5 text-sm border rounded focus:ring-2 focus:ring-blue-400 outline-none"
-              >
-                <option value="Genel Başvuru">Genel Başvuru (Havuz)</option>
-                <option value="Yazılım Geliştirici">Yazılım Geliştirici</option>
-                <option value="Üretim Mühendisi">Üretim Mühendisi</option>
-              </select>
+            <div className="bg-[#1D1D1B] p-8 mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
+               <div>
+                  <h2 className="text-white font-bold text-xl uppercase tracking-tight">Hızlı Başvuru</h2>
+                  <p className="text-gray-400 text-[11px] mt-1">Özgeçmişinizi yükleyin, formunuzu saniyeler içinde dolduralım.</p>
+               </div>
+               <div className="relative inline-block">
+                <input type="file" accept=".pdf" onChange={onFileSelect} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                <button className={`px-8 py-3 font-bold text-[11px] tracking-widest transition-all ${isParsing ? 'bg-gray-700 text-white' : 'bg-[#E30613] text-white hover:bg-white hover:text-[#1D1D1B]'}`}>
+                  {isParsing ? 'İŞLENİYOR...' : 'CV İLE OTOMATİK DOLDUR'}
+                </button>
+               </div>
             </div>
 
-            {/* Ad */}
-            <div className="flex flex-col">
-              <label className="text-xs font-bold uppercase text-gray-600 mb-1.5">ADINIZ</label>
-              <input 
-                type="text" required
-                value={formData.ad}
-                onChange={(e) => setFormData({...formData, ad: e.target.value})}
-                className="px-4 py-2.5 text-sm border border-gray-300 rounded focus:border-red-500 outline-none bg-gray-50" 
-              />
-            </div>
-            
-            {/* Soyad */}
-            <div className="flex flex-col">
-              <label className="text-xs font-bold uppercase text-gray-600 mb-1.5">SOYADINIZ</label>
-              <input 
-                type="text" required
-                value={formData.soyad}
-                onChange={(e) => setFormData({...formData, soyad: e.target.value})}
-                className="px-4 py-2.5 text-sm border border-gray-300 rounded focus:border-red-500 outline-none bg-gray-50" 
-              />
-            </div>
+            <form onSubmit={handleFormSubmit} className="space-y-12">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="md:col-span-2 flex flex-col border-b border-gray-200 focus-within:border-[#E30613] transition-all py-3">
+                  <label className="text-[10px] font-bold text-[#E30613] uppercase tracking-widest">Başvurulan Pozisyon</label>
+                  <select 
+                    value={formData.pozisyon}
+                    onChange={(e) => setFormData({...formData, pozisyon: e.target.value})}
+                    className="bg-transparent py-2 outline-none font-bold text-gray-900 text-lg cursor-pointer appearance-none"
+                  >
+                    <option value="Genel Başvuru">Genel Başvuru (Aday Havuzu)</option>
+                    <option value="Üretim">Üretim / Mühendislik</option>
+                    <option value="Bilgi İşlem">Bilgi Teknolojileri</option>
+                  </select>
+                </div>
 
-            {/* Email */}
-            <div className="flex flex-col">
-              <label className="text-xs font-bold uppercase text-gray-600 mb-1.5">E-POSTA</label>
-              <input 
-                type="email" required
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className={`px-4 py-2.5 text-sm border rounded outline-none transition ${formData.email && !isEmailValid ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50'}`} 
-              />
-              {formData.email && !isEmailValid && <span className="text-[10px] text-red-600 mt-1">Geçerli bir e-posta adresi giriniz.</span>}
-            </div>
+                {[
+                  { id: 'ad', label: 'AD' }, { id: 'soyad', label: 'SOYAD' },
+                  { id: 'email', label: 'E-POSTA ADRESİ' }, { id: 'telefon', label: 'İLETİŞİM NUMARASI' },
+                ].map((f) => (
+                  <div key={f.id} className="flex flex-col border-b border-gray-200 focus-within:border-[#E30613] transition-all py-3">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{f.label}</label>
+                    <input 
+                      type="text" 
+                      value={formData[f.id as keyof typeof formData]}
+                      onChange={(e) => setFormData({...formData, [f.id]: e.target.value})}
+                      className="bg-transparent py-2 outline-none text-base font-semibold text-gray-900 placeholder-gray-200"
+                      placeholder="Girilmedi"
+                    />
+                  </div>
+                ))}
+              </div>
 
-            {/* Telefon */}
-            <div className="flex flex-col">
-              <label className="text-xs font-bold uppercase text-gray-600 mb-1.5">TELEFON</label>
-              <input 
-                type="tel" required
-                value={formData.telefon}
-                onChange={(e) => setFormData({...formData, telefon: e.target.value})}
-                placeholder="05xxxxxxxxx"
-                className={`px-4 py-2.5 text-sm border rounded outline-none transition ${formData.telefon && !isPhoneValid ? 'border-red-500 bg-red-50' : 'border-gray-300 bg-gray-50'}`} 
-              />
-              {formData.telefon && !isPhoneValid && <span className="text-[10px] text-red-600 mt-1">Telefon numarası en az 10 hane olmalıdır.</span>}
-            </div>
+              <div className="pt-10 space-y-8">
+                <div className="flex items-start gap-4 cursor-pointer group" onClick={() => setKvkkAccepted(!kvkkAccepted)}>
+                  <div className={`w-5 h-5 border-2 transition-all flex-shrink-0 ${kvkkAccepted ? 'bg-[#E30613] border-[#E30613]' : 'border-gray-300 group-hover:border-[#E30613]'}`}>
+                    {kvkkAccepted && <svg className="text-white w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeWidth="4"/></svg>}
+                  </div>
+                  <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
+                    Kişisel Verilerin Korunması Kanunu (KVKK) uyarınca hazırlanan <span className="underline text-[#1D1D1B] cursor-help">Aydınlatma Metni</span>'ni okudum ve kabul ediyorum.
+                  </p>
+                </div>
 
-            {/* CV Yükleme */}
-            <div className="md:col-span-2 mt-2 border-2 border-dashed border-gray-300 p-6 text-center rounded-xl bg-gray-50">
-               <input 
-                type="file" accept=".pdf"
-                onChange={(e) => e.target.files && handleFileChange(e.target.files[0])}
-                className="text-xs text-gray-500" 
-               />
-               {fileData && <p className="text-xs text-green-700 font-bold mt-2">✓ {fileData.name} hazır.</p>}
-               {fileError && <p className="text-xs text-red-700 font-bold mt-2">⚠️ {fileError}</p>}
-            </div>
-
-            {/* KVKK Checkbox */}
-            <div className="md:col-span-2 flex items-start gap-3 p-4 bg-gray-50 rounded border border-gray-200">
-              <input 
-                type="checkbox" id="kvkk"
-                checked={kvkkAccepted}
-                onChange={(e) => setKvkkAccepted(e.target.checked)}
-                className="mt-1 w-4 h-4 accent-red-600 cursor-pointer"
-              />
-              <label htmlFor="kvkk" className="text-[11px] text-gray-600 leading-tight cursor-pointer">
-                <strong className="text-gray-800">KVKK Aydınlatma Metni:</strong> Kişisel verilerimin Oyak Çimento Kariyer Portal başvurusu kapsamında işlenmesini, saklanmasını ve gerektiğinde iletişime geçilmesini kabul ediyorum.
-              </label>
-            </div>
-
-            {/* Gönder Butonu */}
-            <div className="md:col-span-2 mt-4">
-              <button 
-                type="submit"
-                disabled={!isFormValid || isSubmitting}
-                className={`w-full py-4 text-white text-sm font-bold rounded uppercase tracking-widest transition-all ${isFormValid && !isSubmitting ? 'bg-[#E30613] hover:bg-black shadow-lg' : 'bg-gray-400 cursor-not-allowed'}`}
-              >
-                {isSubmitting ? 'İŞLENİYOR...' : 'BAŞVURUYU TAMAMLA'}
-              </button>
-            </div>
-          </form>
+                <button 
+                  type="submit"
+                  disabled={!isFormValid || isSubmitting}
+                  className={`w-full py-5 font-bold text-xs tracking-[0.4em] transition-all shadow-xl ${
+                    isFormValid && !isSubmitting 
+                      ? 'bg-[#E30613] text-white hover:bg-[#1D1D1B] cursor-pointer active:scale-[0.98]' 
+                      : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                  }`}
+                >
+                  {isSubmitting ? 'BAŞVURU İLETİLİYOR...' : 'BAŞVURUYU TAMAMLA'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
-      </div>
+      </main>
 
-      {/* 4. MODAL BİLEŞENİ: Buraya ekledik! */}
+      <footer className="bg-[#1D1D1B] text-white py-16 mt-20">
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12 border-b border-gray-800 pb-12">
+           <div>
+              <Image src="/oyak-logo-main.png" alt="OYAK" width={120} height={30} className="brightness-0 invert mb-6" />
+              <p className="text-gray-400 text-xs leading-relaxed">Türkiye'nin her noktasında, geleceği inşa eden projelerin güvenilir çözüm ortağıyız.</p>
+           </div>
+           <div className="space-y-2">
+              <h5 className="font-bold text-xs tracking-widest text-[#E30613]">HIZLI ERİŞİM</h5>
+              <ul className="text-gray-400 text-xs space-y-2">
+                <li>Bilgi Toplumu Hizmetleri</li>
+                <li>Hisse Takibi</li>
+                <li>İnsan Kaynakları Politikası</li>
+              </ul>
+           </div>
+           <div className="space-y-2">
+              <h5 className="font-bold text-xs tracking-widest text-[#E30613]">İLETİŞİM</h5>
+              <p className="text-gray-400 text-xs">Genel Müdürlük: Çankaya/Ankara</p>
+              <p className="text-gray-400 text-xs">E-Posta: kariyer@oyakcimento.com</p>
+           </div>
+        </div>
+        <div className="max-w-6xl mx-auto px-6 pt-8 text-center text-[10px] text-gray-500 font-bold tracking-[0.3em] uppercase">
+          © {new Date().getFullYear()} OYAK ÇİMENTO A.Ş. • TÜM HAKLARI SAKLIDIR
+        </div>
+      </footer>
+
+      {/* Başarı/Hata Modalı */}
       {modalStatus !== 'idle' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[999] p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl transform transition-all animate-in zoom-in duration-300">
-            {modalStatus === 'success' ? (
-              <>
-                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✓</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Başvurunuz Alındı!</h3>
-                <p className="text-gray-600 mb-6 text-sm">Özgeçmişiniz başarıyla iletildi. Onay mailinizi kontrol etmeyi unutmayın.</p>
-                <button 
-                  onClick={() => window.location.reload()}
-                  className="w-full py-3 bg-[#E30613] text-white rounded-lg font-bold hover:bg-black transition"
-                >
-                  OK
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">✕</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Bir Hata Oluştu</h3>
-                <p className="text-gray-600 mb-6 text-sm">Şu an başvurunuzu alamıyoruz. Lütfen internet bağlantınızı kontrol edip tekrar deneyin.</p>
-                <button 
-                  onClick={() => setModalStatus('idle')}
-                  className="w-full py-3 bg-gray-800 text-white rounded-lg font-bold hover:bg-black transition"
-                >
-                  Tekrar Dene
-                </button>
-              </>
-            )}
+          <div className="bg-white p-10 max-w-md w-full text-center shadow-2xl border-t-4 border-[#E30613]">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              {modalStatus === 'success' ? 'Başvurunuz Alındı' : 'Bir Hata Oluştu'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-8">
+              {modalStatus === 'success' 
+                ? 'Bilgileriniz başarıyla sisteme kaydedildi. En kısa sürede sizinle iletişime geçilecektir.' 
+                : 'Lütfen bilgilerinizi kontrol edip tekrar deneyiniz.'}
+            </p>
+            <button 
+              onClick={() => modalStatus === 'success' ? window.location.reload() : setModalStatus('idle')}
+              className="w-full py-4 bg-[#1D1D1B] text-white font-bold text-xs tracking-widest hover:bg-[#E30613] transition-all"
+            >
+              KAPAT
+            </button>
           </div>
         </div>
       )}
