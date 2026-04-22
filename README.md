@@ -3,6 +3,7 @@
 Bu proje, Oyak Çimento İş Zekası departmanındaki staj sürecim kapsamında, aday başvuru süreçlerini otomatize etmek ve İnsan Kaynakları iş akışını hızlandırmak amacıyla geliştirilmiş uçtan uca  bir dijital çözümdür.
 
  **Canlı Demo:** [oyak-career-portal.vercel.app](https://oyak-career-portal.vercel.app)
+ **Youtube Link** : YAKINDA!
 
 ---
 
